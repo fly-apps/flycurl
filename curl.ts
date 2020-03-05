@@ -35,7 +35,7 @@ export async function runTimings(url: string){
     ]);
 
 
-    if(cmdStatus.code > 0){
+    if(cmdStatus.code && cmdStatus.code > 0){
         //shitballs
         const err = stderrBuf.length > 0 ?
             decoder.decode(stderrBuf) :

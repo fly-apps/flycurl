@@ -1,7 +1,6 @@
 import { connect } from "https://denopkg.com/keroxp/deno-redis/redis.ts";
 import { serve, ServerRequest } from "https://deno.land/std/http/server.ts";
 import { runTimings } from "./curl.ts";
-import { SSEWriter, Counter } from "./http.ts";
 const env = Deno.env();
 const region = env.FLY_REGION || "local";
 
@@ -33,6 +32,7 @@ if(redisUrl.password){
 globalRedis.select(1); // global redis uses db 1
 registerIP();
 
+//@ts-ignore
 setInterval(registerIP, 7000);
 
 const s = serve({
@@ -107,49 +107,11 @@ async function handleRequest(req: ServerRequest){
             })
             req.respond({ body: curl.stdout, headers: new Headers({ "From-Region": region })})
             await curl.status();
-        }else if(req.url === "/timings"){
-            const body = new SSEWriter(req);
-            const body2 = new Counter();
-            const headers = new Headers({
-                "Cache-Control": "no-cache",
-                "Content-Type": "text/event-stream"
-            });
-            body.emit("message", {message: "starting"})
-            req.respond({body: body2, headers});
-
-            console.debug("Handling fanout request");
-            body.emit("message", {message: "Looking up regions"});
-            const addrs = await availableRegionAddresses();
-
-            const results = addrs.map(async function([region, target]){
-                const regionName =region.split(":",2)[1]
-                if(target.includes(':')){
-                    //ipv6
-                    target = `[${target}]`;
-                }
-                body.emit("start",{region: regionName})
-                try{
-                    const headers = req.headers;
-                    const resp = await fetch(`http://${target}:8080${req.url}/local`, { method: "POST", body: raw, headers: headers});
-                    console.log("response:", resp.status);
-                    const timing = await resp.json();
-                    return new Promise((resolve) => {
-                        setTimeout(() => {
-                            body.emit("complete", {region: regionName, status: resp.status, timing}).then(resolve);
-                        }, 3000);
-                    });
-                }catch(err){
-                    body.emit("error", {region: regionName, error: err})
-                }
-            });
-
-            await Promise.all(results);
-            body.close();
         }else if(req.url === "/timings/local"){
             console.log("Running timings")
             const timings = await runTimings(body.url)
             req.respond({body: new TextEncoder().encode(JSON.stringify(timings))})
-        }else if(req.url === "/curl"){
+        }else if(req.url === "/curl" || req.url === "/timings"){
             // proxy to other region
             console.log("Trying to curl through:", requestedRegion);
             let target = await localRedis.get(`region:${requestedRegion}`);
