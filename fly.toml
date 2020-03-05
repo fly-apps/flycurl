@@ -1,5 +1,6 @@
 app = "curl"
-
+[experimental]
+allowed_public_ports = [8080]
 
 [[services]]
   internal_port = 8080
