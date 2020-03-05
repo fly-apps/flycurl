@@ -10,11 +10,11 @@ app = "curl"
     soft_limit = 20
 
   [[services.ports]]
-    handlers = ["http"]
+    handlers = []
     port = "80"
 
   [[services.ports]]
-    handlers = ["tls", "http"]
+    handlers = ["tls"]
     port = "443"
 
   [[services.tcp_checks]]
