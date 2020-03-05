@@ -2,7 +2,7 @@ FROM frolvlad/alpine-glibc:alpine-3.8
 
 RUN apk add --no-cache curl
 
-ARG DENO_VERSION=0.32.0
+ARG DENO_VERSION=0.35.0
 ARG SOURCE_DIR=.
 ARG APP_DIR=/app
 ARG ENTRY_FILE=server.ts
