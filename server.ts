@@ -127,7 +127,12 @@ async function handleRequest(req: ServerRequest){
         }else if(req.url === "/timings/local"){
             console.log("Running timings")
             const timings = await runTimings(body.url)
-            req.respond({body: new TextEncoder().encode(JSON.stringify(timings))})
+            const h = new Headers({
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                'Access-Control-Allow-Headers': 'Authorization,DNT,User-Agent,X-Requested-With,Content-Type'
+            })
+            req.respond({headers: h, body: new TextEncoder().encode(JSON.stringify(timings))})
         }else if(req.url === "/curl" || req.url === "/timings"){
             // proxy to other region
             console.log("Trying to curl through:", requestedRegion);

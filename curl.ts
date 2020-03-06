@@ -16,6 +16,7 @@ export async function runTimings(url: string){
         "-o",
         "/dev/null",
         "-sS",
+        '-k',
         '-w',
         metricsFormat,
         url
