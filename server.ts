@@ -78,6 +78,22 @@ async function availableRegionAddresses(){
     )
 }
 async function handleRequest(req: ServerRequest){
+    if(req.method === "OPTIONS"){
+        const h = new Headers({
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Authorization,DNT,User-Agent,X-Requested-With,Content-Type'
+        })
+        req.respond({headers: h, body: ""});
+        return;
+        // add_header 'Access-Control-Allow-Origin' '*';
+        // add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+        // #
+        // # Custom headers and headers various browsers *should* be OK with but aren't
+        // #
+        // add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
+        // #
+    }
     if(env.CURL_SECRET !== req.headers.get("Authorization")){
         req.respond({status: 401, body: new TextEncoder().encode("no yuo")});
         return;
