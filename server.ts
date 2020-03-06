@@ -1,4 +1,5 @@
-import { connect } from "https://denopkg.com/keroxp/deno-redis/redis.ts";
+import { connect } from "https://denopkg.com/superfly/deno-redis/redis.ts"; // use our fork
+//import { connect } from "https://denopkg.com/keroxp/deno-redis/redis.ts";
 import { serve, ServerRequest } from "https://deno.land/std/http/server.ts";
 import { runTimings } from "./curl.ts";
 const env = Deno.env();
@@ -68,7 +69,7 @@ async function availableRegionKeys(){
 }
 
 async function availableRegionAddresses(){
-    const keys = await availableRegionKeys();
+    const keys:string[] = (await availableRegionKeys()) as string[];
     return Promise.all(
         keys.map(async function(k){
             console.log("getting:", k)
