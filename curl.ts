@@ -24,7 +24,7 @@ export async function runTimings(url: string){
     console.debug('args:', args)
 
     const cmd = Deno.run({
-        args: args,
+        cmd: args,
         stdout: "piped",
         stderr: "piped"
     });

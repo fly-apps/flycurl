@@ -118,7 +118,7 @@ async function handleRequest(req: ServerRequest){
             args.unshift("curl")
 
             const curl = Deno.run({
-                args: args,
+                cmd: args,
                 stdout: "piped",
                 stderr: "piped"
             })
