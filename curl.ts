@@ -1,4 +1,4 @@
-import { oak } from "./deps.ts";
+import { oak, streams } from "./deps.ts";
 
 const metricsNumeric = [
   "http_code",
@@ -137,7 +137,11 @@ export async function proxyToRegion(
     headers.set("Fly-Region", requestedRegion);
     response.status = resp.status;
     response.headers = resp.headers;
-    response.body = await resp.text();
+    if (resp.body) {
+      response.body = streams.readerFromStreamReader(resp.body.getReader());
+    } else {
+      response.body = null;
+    }
   } catch (e) {
     console.error(e);
     response.status = 404;
