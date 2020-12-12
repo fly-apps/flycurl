@@ -1,40 +1,7 @@
-import { connect } from "https://denopkg.com/superfly/deno-redis/redis.ts"; // use our fork
-//import { connect } from "https://denopkg.com/keroxp/deno-redis/redis.ts";
 import { serve, ServerRequest } from "https://deno.land/std/http/server.ts";
 import { runTimings } from "./curl.ts";
-const env = Deno.env();
-const region = env.FLY_REGION || "local";
-
-const redisUrl = new URL(env.FLY_REDIS_CACHE_URL || "redis://127.0.0.1:6379");
-
-console.log("Connection to redis:", redisUrl.hostname, redisUrl.port);
-
-const [globalRedis, localRedis] = await Promise.all([
-    connect({
-        hostname: redisUrl.hostname,
-        port: redisUrl.port,
-        //db: 1
-    }),
-    connect({
-        hostname: redisUrl.hostname,
-        port: redisUrl.port,
-        //db: 0
-    })
-])
-if(redisUrl.password){
-    console.log("Authenticating with redis")
-    await Promise.all([
-        localRedis.auth(redisUrl.password),
-        globalRedis.auth(redisUrl.password)
-    ])
-}else{
-    console.log("No redis password found", redisUrl)
-}
-globalRedis.select(1); // global redis uses db 1
-registerIP();
-
-//@ts-ignore
-setInterval(registerIP, 7000);
+const region = Deno.env.get("FLY_REGION") || "local";
+const authSecret = Deno.env.get("CURL_SECRET");
 
 const s = serve({
     hostname: "[::]",
@@ -46,38 +13,6 @@ for await (const req of s) {
     handleRequest(req);
 }
 
-async function registerIP(region?: string){
-    const env = Deno.env();
-    if(!region){
-        region = env.FLY_REGION || "local";
-    }
-    const ip = env.FLY_PUBLIC_IP || "127.0.0.1";
-    console.log(`Registering ip for ${region}:`, ip)
-    await Promise.all([
-        localRedis.set(`region:${region}`, ip),
-        globalRedis.set(`region:${region}`, ip),
-        localRedis.expire(`region:${region}`, 10),
-        globalRedis.expire(`region:${region}`, 10),
-
-    ])
-    if(region === "local"){
-        await registerIP("fake-remote")
-    }
-}
-async function availableRegionKeys(){
-    return localRedis.keys("region:*");
-}
-
-async function availableRegionAddresses(){
-    const keys:string[] = (await availableRegionKeys()) as string[];
-    return Promise.all(
-        keys.map(async function(k){
-            console.log("getting:", k)
-            const addr = await localRedis.get(k);
-            return [k, addr];
-        })
-    )
-}
 async function handleRequest(req: ServerRequest){
     if(req.method === "OPTIONS"){
         const h = new Headers({
@@ -95,18 +30,11 @@ async function handleRequest(req: ServerRequest){
         // add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
         // #
     }
-    if(env.CURL_SECRET !== req.headers.get("Authorization")){
+    if(authSecret && authSecret !== req.headers.get("Authorization")){
         req.respond({status: 401, body: new TextEncoder().encode("no yuo")});
         return;
     }
     console.log(req.method, req.url)
-    if(req.method === "GET" && req.url === "/info"){
-        const regions = await availableRegionAddresses();
-        const body = JSON.stringify(regions);
-
-        req.respond({status: 200, body: new TextEncoder().encode(body)});
-        return;
-    }
     if(req.method === "POST" && (req.url === "/curl" || req.url === "/curl/local" || req.url == "/timings/local" || req.url === "/timings")){
         const raw = await Deno.readAll(req.body);
         const txt = new TextDecoder().decode(raw)
@@ -136,24 +64,21 @@ async function handleRequest(req: ServerRequest){
         }else if(req.url === "/curl" || req.url === "/timings"){
             // proxy to other region
             console.log("Trying to curl through:", requestedRegion);
-            let target = await localRedis.get(`region:${requestedRegion}`);
-            console.log("Remote curl", `http://${target}:8080${req.url}/local`)
-            if(!requestedRegion || !target || target.length === 0){
+            console.log("Remote curl", `http://${requestedRegion}.curl.internal:8080${req.url}/local`)
+            if(!requestedRegion){
                 req.respond({status: 404, body: new TextEncoder().encode(`Region not available: ${requestedRegion}`)});
                 return;
             }
-            if(target.includes(':')){
-                //ipv6
-                target = `[${target}]`;
-            }
             try{
                 const headers = req.headers;
-                const resp = await fetch(`http://${target}:8080${req.url}/local`, { method: "POST", body: raw, headers: headers})
-                resp.headers.set("Fly-Region", region)
-                req.respond({body: resp.body, headers: resp.headers});
+                const resp = await fetch(`http://${requestedRegion}.curl.internal:8080${req.url}/local`, { method: "POST", body: raw, headers: headers})
+                const body = new Uint8Array(await resp.arrayBuffer());
+                resp.headers.set("Fly-Region", requestedRegion)
+                req.respond({body, headers: resp.headers});
             }catch(e){
                 console.error(e);
-                req.respond({body: new TextEncoder().encode(e.message), status: 500})
+                req.respond({body: new TextEncoder().encode(`${requestedRegion} temporarily unavailable`)})
+                req.respond({body: new TextEncoder().encode(`Region not available: ${requestedRegion}`), status: 404})
             }
         }else{
             req.respond({ status: 404, body: new TextEncoder().encode("Not found\n") });

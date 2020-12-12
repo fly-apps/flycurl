@@ -6,8 +6,7 @@ const metricsString = ["http_version", "remote_ip", "scheme"].map(function(n){
     return `"${n}":"%{${n}}"`
 })
 const metricsFormat = "{" + [metricsNumeric, metricsString].join(",") + "}";
-const env = Deno.env();
-const region = env.FLY_REGION || "local";
+const region = Deno.env.get("FLY_REGION") || "local";
 export async function runTimings(url: string){
     const args = [
         "curl",

@@ -1,16 +1,13 @@
-FROM frolvlad/alpine-glibc:alpine-3.8
+FROM hayd/debian-deno:1.6.0
+RUN apt-get update && apt-get install -yq curl && apt-get clean && rm -rf /var/lib/apt/lists
 
-RUN apk add --no-cache curl
+ENV PORT=8080
+EXPOSE 8080
+WORKDIR /app
+USER deno
+COPY main.ts deps.* ./
+RUN /bin/bash -c "deno cache deps.ts || true"
+ADD . .
+RUN deno cache main.ts
 
-ARG DENO_VERSION=0.35.0
-ARG SOURCE_DIR=.
-ARG APP_DIR=/app
-ARG ENTRY_FILE=server.ts
-
-RUN curl -fsSL https://deno.land/x/install/install.sh | sh
-RUN ln -sf /root/.local/bin/deno /bin/deno
-
-COPY ${SOURCE_DIR} ${APP_DIR}
-
-RUN deno install -d /bin fly-app "${APP_DIR}/${ENTRY_FILE}" --allow-env --allow-net --allow-run
-CMD ["deno", "--allow-env", "--allow-net", "--allow-run", "/app/server.ts"]
+CMD ["run", "--allow-env", "--allow-net", "--allow-run", "main.ts"]

@@ -1,6 +1,6 @@
 app = "curl"
 [experimental]
-allowed_public_ports = [8080]
+private_network = true
 
 [[services]]
   internal_port = 8080
