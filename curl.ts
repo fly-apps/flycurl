@@ -36,7 +36,10 @@ export async function timings(params: any) {
     metricsFormat,
     url,
   ];
-  console.debug("args:", args);
+
+  if (params.debug) {
+    console.debug("args:", args);
+  }
 
   const cmd = Deno.run({
     cmd: args,
@@ -106,11 +109,17 @@ export async function proxyToRegion(
     console.error("No region specified");
     throw "Must specify a region";
   }
+  let hostPort = `${requestedRegion}.curl.internal:8080`;
+  if (requestedRegion === "local") {
+    hostPort = `localhost:8080`;
+  }
+  const targetUrl = `http://${hostPort}${request.url.pathname}/local`;
   // proxy to other region
   console.log("Trying to curl through:", requestedRegion);
   console.log(
     "Remote curl",
-    `http://${requestedRegion}.curl.internal:8080${request.url.pathname}/local`,
+    targetUrl,
+    request.headers,
   );
   if (!requestedRegion) {
     response.status = 404;
@@ -120,14 +129,15 @@ export async function proxyToRegion(
   }
   try {
     const headers = request.headers;
+    headers.delete("content-length");
     const resp = await fetch(
-      `http://${requestedRegion}.curl.internal:8080${request.url.pathname}/local`,
+      targetUrl,
       { method: "POST", body: JSON.stringify(body), headers: headers },
     );
     headers.set("Fly-Region", requestedRegion);
     response.status = resp.status;
-    response.body = resp.body;
     response.headers = resp.headers;
+    response.body = await resp.text();
   } catch (e) {
     console.error(e);
     response.status = 404;
