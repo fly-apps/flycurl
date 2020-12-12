@@ -77,7 +77,6 @@ async function handleRequest(req: ServerRequest){
                 req.respond({body, headers: resp.headers});
             }catch(e){
                 console.error(e);
-                req.respond({body: new TextEncoder().encode(`${requestedRegion} temporarily unavailable`)})
                 req.respond({body: new TextEncoder().encode(`Region not available: ${requestedRegion}`), status: 404})
             }
         }else{
